@@ -172,14 +172,36 @@ recordPageVisit();
 
 function saveResult(index,angle){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({index,angle}))}catch(_){}}
 function confetti(){const colors=['#ffdc79','#fff','#56d7ff','#f64b7d','#63e8b1'];for(let i=0;i<64;i++){const e=document.createElement('i');e.className='confetti';e.style.setProperty('--x',rand(100)+'vw');e.style.setProperty('--dx',(rand(240)-120)+'px');e.style.setProperty('--duration',(2.5+rand(2))+'s');e.style.setProperty('--color',colors[Math.floor(rand(colors.length))]);document.body.appendChild(e);setTimeout(()=>e.remove(),4900)}}
+// Only the vehicle, smartphone and TV sectors grant a chance, not an immediate prize.
+// The 500 000 so'm, earbuds, mystery gift and bonuses remain direct prize sectors.
+const chancePrizeNames=new Set(['Smartfon','Avtomobil','Smart TV']);
+const prizeEventRu={
+  'Smartfon':'Шанс на смартфон',
+  '500 000 so‘m':'500 000 сумов — приз',
+  'Avtomobil':'Шанс на автомобиль',
+  'Smart TV':'Шанс на Smart TV',
+  'Simsiz quloqchin':'Беспроводные наушники — приз',
+  'Sirli sovg‘a':'Подарок-сюрприз — приз',
+  'Bonus sovg‘alar':'Бонусные подарки — приз'
+};
+function prizeStatisticLabel(index){
+  const name=prizes[index]?.title||'';
+  return prizeEventRu[name]||name;
+}
 function displayPrize(index,celebrate=true){
   finalPrizeIndex=index;
   const p=prizes[index];
+  const isChance=chancePrizeNames.has(p.title);
   $('prizeImage').src=p.image;$('prizeImage').alt=p.title;
-  $('prizeTitle').textContent=p.title+'!';
-  $('prizeText').textContent='Baraban «'+p.title+'» sektorida to‘xtadi.';
+  $('prizeTitle').textContent=isChance?p.title+' yutish imkoniyati!':p.title+'!';
+  $('prizeText').textContent=isChance
+    ?'Siz «'+p.title+'» sovrinini emas, uni yutib olish imkoniyatini qo‘lga kiritdingiz. Bu hali yutuq kafolati emas.'
+    :'Baraban «'+p.title+'» sektorida to‘xtadi.';
+  document.querySelector('.prize-kicker').textContent=isChance?'✨ Sizga imkoniyat ochildi! ✨':'🎉 Tabriklaymiz! 🎉';
+  document.querySelector('.prize-ribbon').textContent=isChance?'❄️ KATTA SOVRIN IMKONIYATI ❄️':'❄️ YANGI YIL SOVRINI ❄️';
+  $('claimBtn').textContent=isChance?'🎁 IMKONIYATNI TEKSHIRISH':'🎁 SOVRINNI OLISH';
   spinBtn.classList.add('hidden'); spinBtn.disabled=true;
-  status.textContent='🎊 Natijangiz aniqlandi!';
+  status.textContent=isChance?'✨ Sovrinni yutish imkoniyati ochildi!':'🎊 Natijangiz aniqlandi!';
   overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');
   phase='finished';
   if(celebrate)confetti();
@@ -194,7 +216,7 @@ function startSpin(){
   const delta=(target-current+360)%360;
   const startAngle=rotation, endAngle=rotation+7*360+delta;
   saveResult(index,endAngle); // locks the single turn even if reloaded during animation
-  sendStatistic('spin',prizes[index].title);
+  sendStatistic('spin',prizeStatisticLabel(index));
   const duration=5500;let started=null;
   function frame(ts){
     if(started===null)started=ts;
@@ -209,7 +231,7 @@ function startSpin(){
 spinBtn.addEventListener('click',startSpin);
 $('claimBtn').addEventListener('click',()=>{
   if(phase!=='finished')return;
-  sendStatistic('claim',prizes[finalPrizeIndex]?.title||'');
+  sendStatistic('claim',prizeStatisticLabel(finalPrizeIndex));
   if(/^https?:\/\//i.test(CLAIM_URL))window.location.assign(CLAIM_URL);
   else $('claimNote').classList.add('show');
 });
