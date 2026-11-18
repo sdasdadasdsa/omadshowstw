@@ -174,12 +174,14 @@ function saveResult(index,angle){try{localStorage.setItem(STORAGE_KEY,JSON.strin
 function confetti(){const colors=['#ffdc79','#fff','#56d7ff','#f64b7d','#63e8b1'];for(let i=0;i<64;i++){const e=document.createElement('i');e.className='confetti';e.style.setProperty('--x',rand(100)+'vw');e.style.setProperty('--dx',(rand(240)-120)+'px');e.style.setProperty('--duration',(2.5+rand(2))+'s');e.style.setProperty('--color',colors[Math.floor(rand(colors.length))]);document.body.appendChild(e);setTimeout(()=>e.remove(),4900)}}
 // Only the vehicle, smartphone and TV sectors grant a chance, not an immediate prize.
 // The 500 000 so'm, earbuds, mystery gift and bonuses remain direct prize sectors.
-const chancePrizeNames=new Set(['Smartfon','Avtomobil','Smart TV']);
+// Large-prize sectors reveal a drawing-entry ticket, not the actual item.
+// A visual ticket result alone does not register a participant for a real drawing.
+const ticketPrizeNames=new Set(['Smartfon','Avtomobil','Smart TV']);
 const prizeEventRu={
-  'Smartfon':'Шанс на смартфон',
+  'Smartfon':'Билет на розыгрыш смартфона',
   '500 000 so‘m':'500 000 сумов — приз',
-  'Avtomobil':'Шанс на автомобиль',
-  'Smart TV':'Шанс на Smart TV',
+  'Avtomobil':'Билет на розыгрыш автомобиля',
+  'Smart TV':'Билет на розыгрыш Smart TV',
   'Simsiz quloqchin':'Беспроводные наушники — приз',
   'Sirli sovg‘a':'Подарок-сюрприз — приз',
   'Bonus sovg‘alar':'Бонусные подарки — приз'
@@ -191,17 +193,17 @@ function prizeStatisticLabel(index){
 function displayPrize(index,celebrate=true){
   finalPrizeIndex=index;
   const p=prizes[index];
-  const isChance=chancePrizeNames.has(p.title);
+  const isTicket=ticketPrizeNames.has(p.title);
   $('prizeImage').src=p.image;$('prizeImage').alt=p.title;
-  $('prizeTitle').textContent=isChance?p.title+' yutish imkoniyati!':p.title+'!';
-  $('prizeText').textContent=isChance
-    ?'Siz «'+p.title+'» sovrinini emas, uni yutib olish imkoniyatini qo‘lga kiritdingiz. Bu hali yutuq kafolati emas.'
+  $('prizeTitle').textContent=isTicket?p.title+' uchun chipta!':p.title+'!';
+  $('prizeText').textContent=isTicket
+    ?'«'+p.title+'» sovrini uchun qur’a tashlashda ishtirok etish chiptasi sektori chiqdi. Bu sovrinni yutganingizni yoki ro‘yxatdan o‘tganingizni tasdiqlamaydi.'
     :'Baraban «'+p.title+'» sektorida to‘xtadi.';
-  document.querySelector('.prize-kicker').textContent=isChance?'✨ Sizga imkoniyat ochildi! ✨':'🎉 Tabriklaymiz! 🎉';
-  document.querySelector('.prize-ribbon').textContent=isChance?'❄️ KATTA SOVRIN IMKONIYATI ❄️':'❄️ YANGI YIL SOVRINI ❄️';
-  $('claimBtn').textContent=isChance?'🎁 IMKONIYATNI TEKSHIRISH':'🎁 SOVRINNI OLISH';
+  document.querySelector('.prize-kicker').textContent=isTicket?'🎟️ Ishtirok chiptasi! 🎟️':'🎉 Tabriklaymiz! 🎉';
+  document.querySelector('.prize-ribbon').textContent=isTicket?'❄️ SOVRIN O‘YINIGA CHIPTA ❄️':'❄️ YANGI YIL SOVRINI ❄️';
+  $('claimBtn').textContent=isTicket?'🎟️ CHIPTA HAQIDA BATAFSIL':'🎁 SOVRINNI OLISH';
   spinBtn.classList.add('hidden'); spinBtn.disabled=true;
-  status.textContent=isChance?'✨ Sovrinni yutish imkoniyati ochildi!':'🎊 Natijangiz aniqlandi!';
+  status.textContent=isTicket?'🎟️ Qur’a tashlash uchun chipta sektori chiqdi!':'🎊 Natijangiz aniqlandi!';
   overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');
   phase='finished';
   if(celebrate)confetti();
