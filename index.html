@@ -436,61 +436,46 @@ function playSectorTick(progress){
 // Gentle original festive win jingle (~1.8s), synthesized in the browser.
 // Respect the same mute button as the wheel ticks.
 function playWinChime(){
-  if(!soundEnabled||!spinAudioContext)return;
+  if(!soundEnabled)return;
   try{
+    if(!spinAudioContext)spinAudioContext=new (window.AudioContext||window.webkitAudioContext)();
     const ctx=spinAudioContext;
     if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-    const at=ctx.currentTime+.035;
-    const mix=ctx.createGain(),compressor=ctx.createDynamicsCompressor();
-    mix.gain.value=.65;
-    compressor.threshold.value=-15;compressor.ratio.value=4;
-    mix.connect(compressor);compressor.connect(ctx.destination);
-    // Prize reveal: a soft rising shimmer instead of a tune.
-    const duration=.63,rate=ctx.sampleRate;
-    const noise=ctx.createBuffer(1,Math.ceil(duration*rate),rate),samples=noise.getChannelData(0);
-    let smooth=0;
-    for(let i=0;i<samples.length;i++){
-      const p=i/samples.length;
-      smooth=.79*smooth+.21*(Math.random()*2-1);
-      samples[i]=smooth*Math.sin(Math.PI*p)*.85;
-    }
-    const wind=ctx.createBufferSource(),windFilter=ctx.createBiquadFilter(),windGain=ctx.createGain();
-    wind.buffer=noise;windFilter.type='bandpass';windFilter.Q.value=.8;
-    windFilter.frequency.setValueAtTime(620,at);
-    windFilter.frequency.exponentialRampToValueAtTime(2800,at+.51);
-    windGain.gain.setValueAtTime(.0001,at);
-    windGain.gain.linearRampToValueAtTime(.22,at+.19);
-    windGain.gain.exponentialRampToValueAtTime(.0001,at+duration);
-    wind.connect(windFilter);windFilter.connect(windGain);windGain.connect(mix);
-    wind.start(at);wind.stop(at+duration);
-    wind.onended=()=>{wind.disconnect();windFilter.disconnect();windGain.disconnect()};
-    // Warm struck chime with short harmonics, not a pitched melody.
-    function bell(f,t,level,length){
-      const partials=[[1,1],[2.01,.27],[2.73,.11]];
-      for(const [mult,volume] of partials){
-        const osc=ctx.createOscillator(),env=ctx.createGain(),start=at+t,end=start+length;
-        osc.type='sine';osc.frequency.setValueAtTime(f*mult,start);
-        env.gain.setValueAtTime(.0001,start);
-        env.gain.exponentialRampToValueAtTime(level*volume,start+.009);
-        env.gain.exponentialRampToValueAtTime(.0001,end);
-        osc.connect(env);env.connect(mix);
-        osc.start(start);osc.stop(end+.025);
-        osc.onended=()=>{osc.disconnect();env.disconnect()};
+    const t0=ctx.currentTime+.07;
+    const output=ctx.createGain(),limiter=ctx.createDynamicsCompressor();
+    output.gain.value=.7;limiter.threshold.value=-14;limiter.ratio.value=4;
+    output.connect(limiter);limiter.connect(ctx.destination);
+    // Familiar public-domain Christmas melody in a gentle music-box arrangement.
+    function note(f,t,len,v){
+      for(const [harm,mix] of [[1,1],[2.004,.20],[3.01,.055]]){
+        const oscillator=ctx.createOscillator(),gain=ctx.createGain(),start=t0+t,end=start+len;
+        oscillator.type='sine';oscillator.frequency.value=f*harm;
+        gain.gain.setValueAtTime(.0001,start);
+        gain.gain.exponentialRampToValueAtTime(v*mix,start+.01);
+        gain.gain.exponentialRampToValueAtTime(.0001,end);
+        oscillator.connect(gain);gain.connect(output);
+        oscillator.start(start);oscillator.stop(end+.02);
+        oscillator.onended=()=>{oscillator.disconnect();gain.disconnect()};
       }
     }
-    bell(880,.25,.19,.80);
-    bell(1320,.40,.13,.72);
-    bell(1760,.53,.075,.55);
-    // Light, glittery sparkle as the confetti appears.
-    const sparkleLen=.055,glitter=ctx.createBuffer(1,Math.floor(rate*sparkleLen),rate),g=glitter.getChannelData(0);
-    for(let i=0;i<g.length;i++)g[i]=(Math.random()*2-1)*Math.pow(1-i/g.length,2);
-    for(const t of [.42,.52,.64,.76,.90,1.06]){
-      const src=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),amp=ctx.createGain();
-      src.buffer=glitter;hp.type='highpass';hp.frequency.value=5700;
-      amp.gain.value=.065;
-      src.connect(hp);hp.connect(amp);amp.connect(mix);
-      src.start(at+t);
-      src.onended=()=>{src.disconnect();hp.disconnect();amp.disconnect()};
+    // Jingle Bells opening phrase: E E E / E E E / E G C D E.
+    const melody=[[0,659.25,.27],[.29,659.25,.27],[.58,659.25,.48],
+      [1.11,659.25,.27],[1.4,659.25,.27],[1.69,659.25,.48],
+      [2.22,659.25,.27],[2.51,783.99,.27],[2.80,523.25,.27],
+      [3.09,587.33,.27],[3.38,659.25,.69]];
+    for(const [t,f,d] of melody)note(f,t,d,.14);
+    for(const [t,f,d] of [[0,261.63,.85],[1.1,349.23,.85],[2.2,392,.85],[3.3,261.63,.84]])note(f,t,d,.045);
+    // Original synthesized sleigh-bell rhythm for unmistakable New Year ambiance.
+    const rate=ctx.sampleRate,buf=ctx.createBuffer(1,Math.ceil(rate*.12),rate),samples=buf.getChannelData(0);
+    for(let i=0;i<samples.length;i++){
+      const t=i/rate;
+      samples[i]=Math.exp(-t*42)*(.38*Math.sin(2*Math.PI*3100*t)+.31*Math.sin(2*Math.PI*4750*t)+.22*Math.sin(2*Math.PI*6720*t)+.12*(Math.random()*2-1));
+    }
+    for(let i=0;i<17;i++){
+      const src=ctx.createBufferSource(),gain=ctx.createGain();
+      src.buffer=buf;gain.gain.value=i%2?.055:.085;
+      src.connect(gain);gain.connect(output);src.start(t0+i*.235);
+      src.onended=()=>{src.disconnect();gain.disconnect()};
     }
   }catch(_){}
 }
@@ -523,6 +508,14 @@ function startSpin(){
   requestAnimationFrame(frame);
 }
 spinBtn.addEventListener('click',startSpin);
+if(new URLSearchParams(location.search).has('soundtest')){
+  const demo=document.createElement('button');
+  demo.type='button';demo.textContent='🔔 Послушать новогодний звук';
+  demo.style.cssText='position:fixed;z-index:9999;bottom:18px;left:50%;transform:translateX(-50%);background:#fff5dc;color:#19305b;border:2px solid #d6ad54;border-radius:16px;padding:15px 20px;font:700 15px system-ui;box-shadow:0 5px 22px #0008;white-space:nowrap';
+  demo.addEventListener('click',()=>{if(!soundEnabled){soundEnabled=true;paintSoundToggle()}initSpinAudio();playWinChime()});
+  document.body.appendChild(demo);
+}
+
 $('claimBtn').addEventListener('click',()=>{
   if(phase!=='finished')return;
   sendStatistic('claim',prizeStatisticLabel(finalPrizeIndex));
