@@ -483,18 +483,22 @@ function startSpin(){
   wheelRing.classList.add('spinning');
   status.textContent='Baraban aylanmoqda...';
   initSpinAudio();
-  const index=Math.floor(rand(prizes.length)),jitter=rand(14)-7;
+  // Uniform chance per sector; the pointer may stop anywhere inside the chosen sector.
+  // Keep a tiny safe margin from a dividing line so the displayed prize is unambiguous.
+  const index=Math.floor(rand(prizes.length));
+  const halfSector=180/prizes.length;
+  const jitter=(rand(2)-1)*(halfSector-1.2);
   const target=((360-prizes[index].angle+jitter)%360+360)%360;
   const current=((rotation%360)+360)%360;
   const delta=(target-current+360)%360;
-  const startAngle=rotation, endAngle=rotation+12*360+delta;
+  const startAngle=rotation, endAngle=rotation+8*360+delta;
   saveResult(index,endAngle);
   sendStatistic('spin',prizeStatisticLabel(index));
-  const duration=15000;let started=null;let lastTickBucket=Math.floor(startAngle/(360/prizes.length));
+  const duration=10000;let started=null;let lastTickBucket=Math.floor(startAngle/(360/prizes.length));
   function frame(ts){
     if(started===null)started=ts;
     const p=Math.min(1,(ts-started)/duration);
-    // 12 turns / 15 seconds; gradual deceleration throughout.
+    // 8 turns / 10 seconds; gradual deceleration throughout.
     const eased=1-Math.pow(1-p,3.0);
     rotation=startAngle+(endAngle-startAngle)*eased;
     const bucket=Math.floor(rotation/(360/prizes.length));
@@ -513,7 +517,7 @@ $('claimBtn').addEventListener('click',()=>{
   if(/^https?:\/\//i.test(CLAIM_URL))window.location.assign(CLAIM_URL);
   else $('claimNote').classList.add('show');
 });
-try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&Number.isInteger(saved.index)&&saved.index>=0&&saved.index<prizes.length&&Number.isFinite(saved.angle)){rotation=((360-prizes[saved.index].angle)%360+360)%360;paintWheel(rotation);displayPrize(saved.index,false)}}catch(_){}
+try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(saved&&Number.isInteger(saved.index)&&saved.index>=0&&saved.index<prizes.length&&Number.isFinite(saved.angle)){rotation=((saved.angle%360)+360)%360;paintWheel(rotation);displayPrize(saved.index,false)}}catch(_){}
 const lights=$('lights');for(let i=0;i<18;i++){const el=document.createElement('i');el.style.setProperty('--c',['#ffdf7b','#83d8ff','#ff6c85','#d9f8ff'][i%4]);el.style.setProperty('--delay',(-i*.12)+'s');lights.appendChild(el)}
 const stage=$('stage');for(let i=0;i<30;i++){const s=document.createElement('span');s.className='snow';s.textContent=i%4===0?'❄':'•';s.style.left=(i*28.17%100)+'%';s.style.setProperty('--size',(7+i%6*2)+'px');s.style.animationDuration=(8.5+i%7*1.7)+'s';s.style.animationDelay=(-i*.82)+'s';s.style.setProperty('--dx',(i%2?55:-45)+'px');stage.appendChild(s)}
 </script>
