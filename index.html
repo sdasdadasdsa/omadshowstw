@@ -436,33 +436,36 @@ function playSectorTick(progress){
 // Gentle original festive win jingle (~1.8s), synthesized in the browser.
 // Respect the same mute button as the wheel ticks.
 function playWinChime(){
-  if(!soundEnabled||!spinAudioContext||spinAudioContext.state!=='running')return;
+  if(!soundEnabled||!spinAudioContext)return;
   try{
-    const ctx=spinAudioContext,now=ctx.currentTime+.035;
+    const ctx=spinAudioContext;
+    if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+    const now=ctx.currentTime+.04;
+    // Warm, unmistakable celebratory fanfare, with a soft bell-like upper layer.
     const notes=[
-      {f:523.25,t:0,d:.35,v:.09},
-      {f:659.25,t:.20,d:.39,v:.085},
-      {f:783.99,t:.40,d:.44,v:.09},
-      {f:1046.50,t:.65,d:.72,v:.105},
-      {f:783.99,t:.93,d:.49,v:.045},
-      {f:1046.50,t:1.09,d:.67,v:.065}
+      [523.25,0,.32,.22],[659.25,.18,.37,.22],
+      [783.99,.37,.42,.24],[1046.5,.61,.88,.27],
+      [783.99,.83,.33,.12],[1046.5,1.04,.82,.20],
+      [1318.51,1.18,.66,.12]
     ];
     const master=ctx.createGain();
-    master.gain.value=.78;
+    master.gain.value=.92;
     master.connect(ctx.destination);
-    for(const n of notes){
-      const osc=ctx.createOscillator(),env=ctx.createGain();
-      osc.type='sine';osc.frequency.setValueAtTime(n.f,now+n.t);
-      env.gain.setValueAtTime(.0001,now+n.t);
-      env.gain.exponentialRampToValueAtTime(n.v,now+n.t+.024);
-      env.gain.exponentialRampToValueAtTime(.0001,now+n.t+n.d);
-      osc.connect(env);env.connect(master);
-      osc.start(now+n.t);osc.stop(now+n.t+n.d+.03);
-      osc.onended=()=>{osc.disconnect();env.disconnect()};
+    for(const [freq,offset,duration,volume] of notes){
+      for(const [wave,octave,mix] of [['triangle',1,.8],['sine',2,.2]]){
+        const osc=ctx.createOscillator(),envelope=ctx.createGain();
+        osc.type=wave;osc.frequency.setValueAtTime(freq*octave,now+offset);
+        const start=now+offset,peak=start+.018,end=start+duration;
+        envelope.gain.setValueAtTime(.0001,start);
+        envelope.gain.exponentialRampToValueAtTime(Math.max(.0002,volume*mix),peak);
+        envelope.gain.exponentialRampToValueAtTime(.0001,end);
+        osc.connect(envelope);envelope.connect(master);
+        osc.start(start);osc.stop(end+.025);
+        osc.onended=()=>{osc.disconnect();envelope.disconnect()};
+      }
     }
   }catch(_){}
 }
-
 function startSpin(){
   if(phase!=='ready')return;
   phase='spinning';spinBtn.disabled=true;spinBtn.textContent='❄️ AYLANMOQDA...';spinBtn.classList.add('spin-loading-art');spinBtn.setAttribute('aria-label','AYLANMOQDA...');
@@ -487,7 +490,7 @@ function startSpin(){
     if(bucket>lastTickBucket){lastTickBucket=bucket;playSectorTick(p)}
     paintWheel(rotation);
     if(p<1)requestAnimationFrame(frame);
-    else{rotation=endAngle;paintWheel(rotation);wheelRing.classList.remove('spinning');playWinChime();displayPrize(index)}
+    else{rotation=endAngle;paintWheel(rotation);wheelRing.classList.remove('spinning');displayPrize(index)}
   }
   requestAnimationFrame(frame);
 }
