@@ -443,7 +443,7 @@ function playWinChime(){
     if(ctx.state==='suspended')ctx.resume().catch(()=>{});
     const t0=ctx.currentTime+.07;
     const output=ctx.createGain(),limiter=ctx.createDynamicsCompressor();
-    output.gain.value=.7;limiter.threshold.value=-14;limiter.ratio.value=4;
+    output.gain.value=.29;limiter.threshold.value=-14;limiter.ratio.value=4;
     output.connect(limiter);limiter.connect(ctx.destination);
     // Familiar public-domain Christmas melody in a gentle music-box arrangement.
     function note(f,t,len,v){
@@ -459,22 +459,20 @@ function playWinChime(){
       }
     }
     // Jingle Bells opening phrase: E E E / E E E / E G C D E.
-    const melody=[[0,659.25,.27],[.29,659.25,.27],[.58,659.25,.48],
-      [1.11,659.25,.27],[1.4,659.25,.27],[1.69,659.25,.48],
-      [2.22,659.25,.27],[2.51,783.99,.27],[2.80,523.25,.27],
-      [3.09,587.33,.27],[3.38,659.25,.69]];
-    for(const [t,f,d] of melody)note(f,t,d,.14);
-    for(const [t,f,d] of [[0,261.63,.85],[1.1,349.23,.85],[2.2,392,.85],[3.3,261.63,.84]])note(f,t,d,.045);
+    const melody=[[0,659.25,.23],[.26,659.25,.23],[.52,659.25,.35],
+      [.95,659.25,.23],[1.21,659.25,.23],[1.47,659.25,.40]];
+    for(const [t,f,d] of melody)note(f,t,d,.12);
+    for(const [t,f,d] of [[0,261.63,.66],[.92,349.23,.80]])note(f,t,d,.035);
     // Original synthesized sleigh-bell rhythm for unmistakable New Year ambiance.
     const rate=ctx.sampleRate,buf=ctx.createBuffer(1,Math.ceil(rate*.12),rate),samples=buf.getChannelData(0);
     for(let i=0;i<samples.length;i++){
       const t=i/rate;
       samples[i]=Math.exp(-t*42)*(.38*Math.sin(2*Math.PI*3100*t)+.31*Math.sin(2*Math.PI*4750*t)+.22*Math.sin(2*Math.PI*6720*t)+.12*(Math.random()*2-1));
     }
-    for(let i=0;i<17;i++){
+    for(let i=0;i<8;i++){
       const src=ctx.createBufferSource(),gain=ctx.createGain();
       src.buffer=buf;gain.gain.value=i%2?.055:.085;
-      src.connect(gain);gain.connect(output);src.start(t0+i*.235);
+      src.connect(gain);gain.connect(output);src.start(t0+i*.22);
       src.onended=()=>{src.disconnect();gain.disconnect()};
     }
   }catch(_){}
@@ -508,13 +506,6 @@ function startSpin(){
   requestAnimationFrame(frame);
 }
 spinBtn.addEventListener('click',startSpin);
-if(new URLSearchParams(location.search).has('soundtest')){
-  const demo=document.createElement('button');
-  demo.type='button';demo.textContent='🔔 Послушать новогодний звук';
-  demo.style.cssText='position:fixed;z-index:9999;bottom:18px;left:50%;transform:translateX(-50%);background:#fff5dc;color:#19305b;border:2px solid #d6ad54;border-radius:16px;padding:15px 20px;font:700 15px system-ui;box-shadow:0 5px 22px #0008;white-space:nowrap';
-  demo.addEventListener('click',()=>{if(!soundEnabled){soundEnabled=true;paintSoundToggle()}initSpinAudio();playWinChime()});
-  document.body.appendChild(demo);
-}
 
 $('claimBtn').addEventListener('click',()=>{
   if(phase!=='finished')return;
