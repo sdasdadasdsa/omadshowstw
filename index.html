@@ -440,29 +440,54 @@ function playWinChime(){
   try{
     const ctx=spinAudioContext;
     if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-    const now=ctx.currentTime+.04;
-    // Warm, unmistakable celebratory fanfare, with a soft bell-like upper layer.
-    const notes=[
-      [523.25,0,.32,.22],[659.25,.18,.37,.22],
-      [783.99,.37,.42,.24],[1046.5,.61,.88,.27],
-      [783.99,.83,.33,.12],[1046.5,1.04,.82,.20],
-      [1318.51,1.18,.66,.12]
+    const t0=ctx.currentTime+.045;
+    // Original 2.5-second holiday victory sting: bells, warm fanfare and sleigh-bell sparkle.
+    const limiter=ctx.createDynamicsCompressor();
+    limiter.threshold.value=-17;limiter.knee.value=14;
+    limiter.ratio.value=5;limiter.attack.value=.003;limiter.release.value=.20;
+    const mix=ctx.createGain();mix.gain.value=.64;
+    mix.connect(limiter);limiter.connect(ctx.destination);
+    function tone(hz,at,len,vol,wave,attack=.012){
+      const osc=ctx.createOscillator(),env=ctx.createGain();
+      const start=t0+at,end=start+len;
+      osc.type=wave;osc.frequency.setValueAtTime(hz,start);
+      env.gain.setValueAtTime(.0001,start);
+      env.gain.exponentialRampToValueAtTime(vol,start+attack);
+      env.gain.exponentialRampToValueAtTime(.0001,end);
+      osc.connect(env);env.connect(mix);
+      osc.start(start);osc.stop(end+.02);
+      osc.onended=()=>{osc.disconnect();env.disconnect()};
+    }
+    // Brassy warm harmony under the festive bell melody.
+    for(const [at,hz] of [[0,261.63],[.32,349.23],[.66,392],[1.02,523.25]]){
+      tone(hz,at,.55,.12,'triangle',.028);
+      tone(hz*1.5,at,.38,.045,'sine',.03);
+    }
+    // Distinct, twinkly major-key celebration rather than arcade beeps.
+    const bells=[
+      [0,783.99],[.16,987.77],[.32,1174.66],
+      [.54,1318.51],[.76,1567.98],[.98,1760],
+      [1.22,1567.98],[1.44,2093],[1.78,1760],
+      [2.04,2093]
     ];
-    const master=ctx.createGain();
-    master.gain.value=.92;
-    master.connect(ctx.destination);
-    for(const [freq,offset,duration,volume] of notes){
-      for(const [wave,octave,mix] of [['triangle',1,.8],['sine',2,.2]]){
-        const osc=ctx.createOscillator(),envelope=ctx.createGain();
-        osc.type=wave;osc.frequency.setValueAtTime(freq*octave,now+offset);
-        const start=now+offset,peak=start+.018,end=start+duration;
-        envelope.gain.setValueAtTime(.0001,start);
-        envelope.gain.exponentialRampToValueAtTime(Math.max(.0002,volume*mix),peak);
-        envelope.gain.exponentialRampToValueAtTime(.0001,end);
-        osc.connect(envelope);envelope.connect(master);
-        osc.start(start);osc.stop(end+.025);
-        osc.onended=()=>{osc.disconnect();envelope.disconnect()};
-      }
+    for(const [at,hz] of bells){
+      tone(hz,at,.58,.105,'sine',.005);
+      tone(hz*2.01,at,.18,.019,'sine',.004);
+    }
+    // Soft sleigh-bell jingles: filtered short noise bursts.
+    const rate=ctx.sampleRate,buffer=ctx.createBuffer(1,Math.floor(rate*.095),rate);
+    const data=buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++){
+      const p=i/data.length;
+      data[i]=(Math.random()*2-1)*Math.pow(1-p,2);
+    }
+    for(const at of [0,.15,.32,.49,.67,.83,1.02,1.19,1.36,1.55,1.76,1.96,2.17]){
+      const src=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),env=ctx.createGain();
+      src.buffer=buffer;hp.type='highpass';hp.frequency.value=4200;
+      env.gain.value=.052;
+      src.connect(hp);hp.connect(env);env.connect(mix);
+      src.start(t0+at);
+      src.onended=()=>{src.disconnect();hp.disconnect();env.disconnect()};
     }
   }catch(_){}
 }
