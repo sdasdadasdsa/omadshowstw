@@ -440,54 +440,57 @@ function playWinChime(){
   try{
     const ctx=spinAudioContext;
     if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-    const t0=ctx.currentTime+.045;
-    // Original 2.5-second holiday victory sting: bells, warm fanfare and sleigh-bell sparkle.
-    const limiter=ctx.createDynamicsCompressor();
-    limiter.threshold.value=-17;limiter.knee.value=14;
-    limiter.ratio.value=5;limiter.attack.value=.003;limiter.release.value=.20;
-    const mix=ctx.createGain();mix.gain.value=.64;
-    mix.connect(limiter);limiter.connect(ctx.destination);
-    function tone(hz,at,len,vol,wave,attack=.012){
-      const osc=ctx.createOscillator(),env=ctx.createGain();
-      const start=t0+at,end=start+len;
-      osc.type=wave;osc.frequency.setValueAtTime(hz,start);
-      env.gain.setValueAtTime(.0001,start);
-      env.gain.exponentialRampToValueAtTime(vol,start+attack);
-      env.gain.exponentialRampToValueAtTime(.0001,end);
-      osc.connect(env);env.connect(mix);
-      osc.start(start);osc.stop(end+.02);
-      osc.onended=()=>{osc.disconnect();env.disconnect()};
+    const at=ctx.currentTime+.035;
+    const mix=ctx.createGain(),compressor=ctx.createDynamicsCompressor();
+    mix.gain.value=.65;
+    compressor.threshold.value=-15;compressor.ratio.value=4;
+    mix.connect(compressor);compressor.connect(ctx.destination);
+    // Prize reveal: a soft rising shimmer instead of a tune.
+    const duration=.63,rate=ctx.sampleRate;
+    const noise=ctx.createBuffer(1,Math.ceil(duration*rate),rate),samples=noise.getChannelData(0);
+    let smooth=0;
+    for(let i=0;i<samples.length;i++){
+      const p=i/samples.length;
+      smooth=.79*smooth+.21*(Math.random()*2-1);
+      samples[i]=smooth*Math.sin(Math.PI*p)*.85;
     }
-    // Brassy warm harmony under the festive bell melody.
-    for(const [at,hz] of [[0,261.63],[.32,349.23],[.66,392],[1.02,523.25]]){
-      tone(hz,at,.55,.12,'triangle',.028);
-      tone(hz*1.5,at,.38,.045,'sine',.03);
+    const wind=ctx.createBufferSource(),windFilter=ctx.createBiquadFilter(),windGain=ctx.createGain();
+    wind.buffer=noise;windFilter.type='bandpass';windFilter.Q.value=.8;
+    windFilter.frequency.setValueAtTime(620,at);
+    windFilter.frequency.exponentialRampToValueAtTime(2800,at+.51);
+    windGain.gain.setValueAtTime(.0001,at);
+    windGain.gain.linearRampToValueAtTime(.22,at+.19);
+    windGain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+    wind.connect(windFilter);windFilter.connect(windGain);windGain.connect(mix);
+    wind.start(at);wind.stop(at+duration);
+    wind.onended=()=>{wind.disconnect();windFilter.disconnect();windGain.disconnect()};
+    // Warm struck chime with short harmonics, not a pitched melody.
+    function bell(f,t,level,length){
+      const partials=[[1,1],[2.01,.27],[2.73,.11]];
+      for(const [mult,volume] of partials){
+        const osc=ctx.createOscillator(),env=ctx.createGain(),start=at+t,end=start+length;
+        osc.type='sine';osc.frequency.setValueAtTime(f*mult,start);
+        env.gain.setValueAtTime(.0001,start);
+        env.gain.exponentialRampToValueAtTime(level*volume,start+.009);
+        env.gain.exponentialRampToValueAtTime(.0001,end);
+        osc.connect(env);env.connect(mix);
+        osc.start(start);osc.stop(end+.025);
+        osc.onended=()=>{osc.disconnect();env.disconnect()};
+      }
     }
-    // Distinct, twinkly major-key celebration rather than arcade beeps.
-    const bells=[
-      [0,783.99],[.16,987.77],[.32,1174.66],
-      [.54,1318.51],[.76,1567.98],[.98,1760],
-      [1.22,1567.98],[1.44,2093],[1.78,1760],
-      [2.04,2093]
-    ];
-    for(const [at,hz] of bells){
-      tone(hz,at,.58,.105,'sine',.005);
-      tone(hz*2.01,at,.18,.019,'sine',.004);
-    }
-    // Soft sleigh-bell jingles: filtered short noise bursts.
-    const rate=ctx.sampleRate,buffer=ctx.createBuffer(1,Math.floor(rate*.095),rate);
-    const data=buffer.getChannelData(0);
-    for(let i=0;i<data.length;i++){
-      const p=i/data.length;
-      data[i]=(Math.random()*2-1)*Math.pow(1-p,2);
-    }
-    for(const at of [0,.15,.32,.49,.67,.83,1.02,1.19,1.36,1.55,1.76,1.96,2.17]){
-      const src=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),env=ctx.createGain();
-      src.buffer=buffer;hp.type='highpass';hp.frequency.value=4200;
-      env.gain.value=.052;
-      src.connect(hp);hp.connect(env);env.connect(mix);
-      src.start(t0+at);
-      src.onended=()=>{src.disconnect();hp.disconnect();env.disconnect()};
+    bell(880,.25,.19,.80);
+    bell(1320,.40,.13,.72);
+    bell(1760,.53,.075,.55);
+    // Light, glittery sparkle as the confetti appears.
+    const sparkleLen=.055,glitter=ctx.createBuffer(1,Math.floor(rate*sparkleLen),rate),g=glitter.getChannelData(0);
+    for(let i=0;i<g.length;i++)g[i]=(Math.random()*2-1)*Math.pow(1-i/g.length,2);
+    for(const t of [.42,.52,.64,.76,.90,1.06]){
+      const src=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),amp=ctx.createGain();
+      src.buffer=glitter;hp.type='highpass';hp.frequency.value=5700;
+      amp.gain.value=.065;
+      src.connect(hp);hp.connect(amp);amp.connect(mix);
+      src.start(at+t);
+      src.onended=()=>{src.disconnect();hp.disconnect();amp.disconnect()};
     }
   }catch(_){}
 }
